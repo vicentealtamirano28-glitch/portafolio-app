@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Indicadores from '../components/Indicadores.astro';
+import { url } from '../lib/url';
 
 const lecciones = (await getCollection('lecciones')).sort((a, b) => a.data.orden - b.data.orden);
 const primera = lecciones[0];
@@ -22,7 +23,7 @@ const totalMinutos = lecciones.reduce((s, l) => s + l.data.minutos, 0);
         herramienta interactiva y un par de preguntas para comprobar lo aprendido.
       </p>
       <p>
-        <a class="button" href={`/lecciones/${primera.id}`}>Empieza por la lección 1 ({primera.data.minutos} min)</a>
+        <a class="button" href={url(`/lecciones/${primera.id}`)}>Empieza por la lección 1 ({primera.data.minutos} min)</a>
       </p>
       <p class="nota">
         Esto es material educativo, no asesoría. No te vamos a decir en qué invertir; te vamos a ayudar a entender
@@ -45,7 +46,7 @@ const totalMinutos = lecciones.reduce((s, l) => s + l.data.minutos, 0);
               {String(l.data.orden).padStart(2, '0')}
             </span>
             <div>
-              <a href={`/lecciones/${l.id}`}>{l.data.titulo}</a>
+              <a href={url(`/lecciones/${l.id}`)}>{l.data.titulo}</a>
               <p>{l.data.resumen}</p>
             </div>
             <span class="estado">
