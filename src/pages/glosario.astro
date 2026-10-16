@@ -1,0 +1,97 @@
+---
+import Base from '../layouts/Base.astro';
+
+const terminos = [
+  { t: 'Acción', d: 'Parte de la propiedad de una empresa. Puede pagar dividendos y su precio cambia según cómo le va a la empresa y lo que espera el mercado.' },
+  { t: 'Activo', d: 'Cualquier cosa en la que inviertes dinero esperando recibir algo a futuro: intereses, dividendos o un mayor precio de venta.' },
+  { t: 'Bono', d: 'Préstamo que le haces a una empresa o al Estado. A cambio recibes intereses (cupones) y la devolución del capital en una fecha definida.' },
+  { t: 'Comisión', d: 'Lo que cobra una administradora o intermediario por gestionar tu inversión. En fondos mutuos suele ser un porcentaje anual del saldo, ya descontado del valor cuota.' },
+  { t: 'Correlación', d: 'Número entre −1 y +1 que indica qué tan parecido se mueven dos activos. Mientras más baja, mayor el beneficio de combinarlos.' },
+  { t: 'Diversificación', d: 'Repartir el dinero entre activos que no se mueven igual, para que las caídas de unos se compensen en parte con otros.' },
+  { t: 'ETF', d: 'Fondo que se compra y vende en la bolsa como una acción. Muchos replican un índice y cobran comisiones bajas.' },
+  { t: 'Fondo mutuo', d: 'Patrimonio formado por aportes de muchas personas, administrado por una sociedad que lo invierte en una canasta de activos. Se invierte comprando cuotas.' },
+  { t: 'Horizonte', d: 'Tiempo que puedes mantener una inversión sin necesitar el dinero. Un horizonte largo permite tolerar más volatilidad.' },
+  { t: 'IPC', d: 'Índice de Precios al Consumidor. Lo publica el INE cada mes y mide la variación de precios de una canasta de bienes y servicios; es la medida habitual de la inflación en Chile.' },
+  { t: 'Liquidez', d: 'Qué tan rápido y barato puedes convertir una inversión en efectivo sin perder valor. Una cuenta vista es muy líquida; un depósito a plazo antes de su vencimiento, poco.' },
+  { t: 'Percentil', d: 'Valor bajo el cual queda un porcentaje dado de los casos. El percentil 10 deja por debajo al 10% de los escenarios; el 50 es la mediana.' },
+  { t: 'Perfil de riesgo', d: 'Resumen de cuánto riesgo puedes y quieres asumir, según tu horizonte, objetivos, ingresos, experiencia y reacción ante caídas.' },
+  { t: 'Rebalanceo', d: 'Volver a los pesos objetivo de tu portafolio, vendiendo parte de lo que subió y comprando lo que quedó atrás.' },
+  { t: 'Renta fija', d: 'Inversiones cuyos pagos están definidos de antemano, como bonos y depósitos a plazo. Su precio igual puede variar si cambian las tasas de interés.' },
+  { t: 'Renta variable', d: 'Inversiones cuyo retorno no está definido de antemano, principalmente acciones y fondos de acciones.' },
+  { t: 'Retorno real', d: 'Retorno después de descontar la inflación: (1 + retorno nominal) / (1 + inflación) − 1. Mide cuánto crece tu poder de compra.' },
+  { t: 'TPM', d: 'Tasa de Política Monetaria. Tasa de interés que fija el Banco Central de Chile para guiar al resto de las tasas y controlar la inflación.' },
+  { t: 'UF', d: 'Unidad de Fomento. Unidad de cuenta que se reajusta diariamente según el IPC del mes anterior, para mantener el poder de compra de montos en el tiempo.' },
+  { t: 'Volatilidad', d: 'Medida de cuánto varían los retornos alrededor de su promedio, normalmente la desviación estándar anual. A mayor volatilidad, más amplio el rango de resultados.' },
+].sort((a, b) => a.t.localeCompare(b.t, 'es'));
+
+const slug = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-');
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'DefinedTermSet',
+  name: 'Glosario de inversiones',
+  inLanguage: 'es-CL',
+  hasDefinedTerm: terminos.map((x) => ({ '@type': 'DefinedTerm', name: x.t, description: x.d })),
+};
+---
+
+<Base
+  title="Glosario"
+  description="Glosario de términos de inversión explicados de forma simple: acción, bono, ETF, UF, IPC, TPM, volatilidad, correlación, percentil y más."
+  jsonLd={jsonLd}
+>
+  <div class="glosario">
+    <p class="eyebrow">Referencia</p>
+    <h1>Glosario</h1>
+    <p class="bajada">{terminos.length} términos que aparecen en las lecciones, en orden alfabético.</p>
+    <dl>
+      {
+        terminos.map((x) => (
+          <div id={slug(x.t)}>
+            <dt>{x.t}</dt>
+            <dd>{x.d}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</Base>
+
+<style>
+  .glosario {
+    max-width: var(--measure);
+    margin: 0 auto;
+  }
+
+  .bajada {
+    color: var(--ink-soft);
+  }
+
+  dl {
+    margin: 2rem 0 0;
+    border-top: 2px solid var(--ink);
+  }
+
+  dl div {
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  @media (min-width: 40rem) {
+    dl div {
+      display: grid;
+      grid-template-columns: 11rem 1fr;
+      gap: 1.5rem;
+    }
+  }
+
+  dt {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  dd {
+    margin: 0;
+  }
+</style>

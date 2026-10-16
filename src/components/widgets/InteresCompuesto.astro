@@ -1,0 +1,106 @@
+<section class="widget" aria-labelledby="ic-titulo" data-compuesto>
+  <h2 id="ic-titulo">Calculadora de interés compuesto</h2>
+  <form class="field-row" data-form>
+    <div class="field">
+      <label for="ic-inicial">Monto inicial (CLP)</label>
+      <input id="ic-inicial" name="inicial" type="number" inputmode="numeric" min="0" step="10000" value="1000000" />
+    </div>
+    <div class="field">
+      <label for="ic-aporte">Aporte mensual (CLP)</label>
+      <input id="ic-aporte" name="aporte" type="number" inputmode="numeric" min="0" step="5000" value="50000" />
+    </div>
+    <div class="field">
+      <label for="ic-tasa">Retorno anual (%)</label>
+      <input id="ic-tasa" name="tasa" type="number" inputmode="decimal" min="-10" max="30" step="0.1" value="6" />
+    </div>
+    <div class="field">
+      <label for="ic-anios">Años</label>
+      <input id="ic-anios" name="anios" type="number" inputmode="numeric" min="1" max="60" step="1" value="20" />
+    </div>
+    <div class="field">
+      <label for="ic-inflacion">Inflación anual (%)</label>
+      <input id="ic-inflacion" name="inflacion" type="number" inputmode="decimal" min="-5" max="50" step="0.1" value="3" aria-describedby="ic-inflacion-hint" />
+      <span class="hint" id="ic-inflacion-hint" data-inflacion-hint>Valor por defecto: 3%. Buscando IPC de 12 meses…</span>
+    </div>
+  </form>
+  <dl class="stats">
+    <div><dt>Total aportado</dt><dd data-aportado>—</dd></div>
+    <div><dt>Valor final nominal</dt><dd data-nominal>—</dd></div>
+    <div><dt>En pesos de hoy (real)</dt><dd data-real>—</dd></div>
+  </dl>
+  <div class="chart" data-chart role="img" aria-label="Evolución del ahorro"></div>
+  <ul class="legend">
+    <li><span class="swatch"></span>Valor nominal</li>
+    <li><span class="swatch ochre"></span>Valor real (descontada la inflación)</li>
+    <li><span class="swatch ink"></span>Total aportado</li>
+  </ul>
+  <p class="summary" data-summary aria-live="polite"></p>
+</section>
+
+<script>
+  import { compound } from '../../lib/finance';
+  import { getIpc12, IPC_FALLBACK } from '../../lib/indicadores';
+  import { formatCLP, formatCompactCLP, formatMes, formatNum } from '../../lib/format';
+  import { COLOR, chart, el, linear, niceMax, path, xAxisYears, yAxis } from '../../lib/svg';
+
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
+
+  document.querySelectorAll<HTMLElement>('[data-compuesto]').forEach((root) => {
+    const form = root.querySelector<HTMLFormElement>('[data-form]')!;
+    const box = root.querySelector<HTMLElement>('[data-chart]')!;
+    const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+
+    function render() {
+      const inicial = clamp(field('inicial').valueAsNumber, 0, 1e12);
+      const aporteMensual = clamp(field('aporte').valueAsNumber, 0, 1e10);
+      const tasaAnual = clamp(field('tasa').valueAsNumber, -10, 30) / 100;
+      const anios = Math.round(clamp(field('anios').valueAsNumber, 1, 60));
+      const inflacionAnual = clamp(field('inflacion').valueAsNumber, -5, 50) / 100;
+      const serie = compound({ inicial, aporteMensual, tasaAnual, anios, inflacionAnual });
+      const fin = serie.at(-1)!;
+
+      q('[data-aportado]').textContent = formatCLP(fin.aportado);
+      q('[data-nominal]').textContent = formatCLP(fin.valorNominal);
+      q('[data-real]').textContent = formatCLP(fin.valorReal);
+
+      const c = chart(box, 640, 320);
+      const max = niceMax(Math.max(...serie.map((p) => Math.max(p.valorNominal, p.aportado))));
+      const x = linear(0, anios, c.pad.l, c.width - c.pad.r);
+      const y = linear(0, max, c.height - c.pad.b, c.pad.t);
+      yAxis(c, max, y, formatCompactCLP);
+      xAxisYears(c, anios, x);
+      const linea = (key: 'aportado' | 'valorNominal' | 'valorReal') => path(serie.map((p) => [x(p.anio), y(p[key])]));
+      c.svg.append(
+        el('path', { d: linea('aportado'), fill: 'none', stroke: COLOR.inkSoft, 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }),
+        el('path', { d: linea('valorReal'), fill: 'none', stroke: COLOR.ochre, 'stroke-width': 3 }),
+        el('path', { d: linea('valorNominal'), fill: 'none', stroke: COLOR.accent, 'stroke-width': 3 }),
+      );
+
+      const texto =
+        `En ${anios} años aportas ${formatCLP(fin.aportado)} y terminas con ${formatCLP(fin.valorNominal)} nominales. ` +
+        `Con inflación de ${formatNum(inflacionAnual * 100)}% anual, eso equivale a ${formatCLP(fin.valorReal)} en pesos de hoy.`;
+      q('[data-summary]').textContent = texto;
+      box.setAttribute('aria-label', `Gráfico de ahorro en el tiempo. ${texto}`);
+    }
+
+    form.addEventListener('input', render);
+    form.addEventListener('submit', (e) => e.preventDefault());
+    render();
+
+    const hint = q('[data-inflacion-hint]');
+    const inflacion = field('inflacion');
+    void getIpc12().then((ipc) => {
+      if (!ipc) {
+        hint.textContent = `Valor por defecto: ${formatNum(IPC_FALLBACK * 100)}% (no se pudo obtener el IPC de 12 meses).`;
+        return;
+      }
+      // Don't overwrite a value the reader already changed while the request was in flight.
+      if (inflacion.value === String(IPC_FALLBACK * 100)) {
+        inflacion.value = (Math.round(ipc.valor * 1000) / 10).toString();
+        render();
+      }
+      hint.textContent = `IPC acumulado 12 meses (${formatMes(ipc.desde)} – ${formatMes(ipc.hasta)}): ${formatNum(ipc.valor * 100)}%. Fuente: mindicador.cl.`;
+    });
+  });
+</script>

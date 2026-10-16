@@ -1,0 +1,220 @@
+---
+import { ASSETS } from '../../lib/finance';
+import Disclaimer from '../Disclaimer.astro';
+import Supuestos from '../Supuestos.astro';
+
+const inicialPeso = { rv: 50, rf: 40, caja: 10 } as const;
+---
+
+<section class="widget" aria-labelledby="sim-titulo" data-simulador>
+  <h2 id="sim-titulo">Simulador de portafolio</h2>
+  <form data-form>
+    <fieldset class="pesos">
+      <legend>Asignación de activos <span class="hint">(siempre suma 100%; al mover uno, los otros se ajustan)</span></legend>
+      {
+        ASSETS.map((a) => (
+          <div class="field">
+            <div class="slider-head">
+              <label for={`sim-${a.id}`}>{a.nombre}</label>
+              <output for={`sim-${a.id}`} data-out={a.id}>
+                {inicialPeso[a.id]}%
+              </output>
+            </div>
+            <input id={`sim-${a.id}`} name={a.id} data-peso={a.id} type="range" min="0" max="100" step="1" value={inicialPeso[a.id]} />
+          </div>
+        ))
+      }
+    </fieldset>
+    <div class="field-row">
+      <div class="field">
+        <label for="sim-inicial">Monto inicial (CLP)</label>
+        <input id="sim-inicial" name="inicial" type="number" inputmode="numeric" min="0" step="10000" value="1000000" />
+      </div>
+      <div class="field">
+        <label for="sim-aporte">Aporte mensual (CLP)</label>
+        <input id="sim-aporte" name="aporte" type="number" inputmode="numeric" min="0" step="5000" value="50000" />
+      </div>
+      <div class="field">
+        <label for="sim-anios">Años</label>
+        <input id="sim-anios" name="anios" type="number" inputmode="numeric" min="1" max="50" step="1" value="20" />
+      </div>
+    </div>
+  </form>
+
+  <dl class="stats">
+    <div><dt>Retorno esperado anual</dt><dd data-ret>—</dd></div>
+    <div><dt>Volatilidad anual</dt><dd data-vol>—</dd></div>
+    <div><dt>Total aportado</dt><dd data-aportado>—</dd></div>
+    <div><dt>Prob. de terminar con menos de lo aportado</dt><dd data-prob>—</dd></div>
+  </dl>
+
+  <div class="chart" data-chart role="img" aria-label="Abanico de resultados simulados"></div>
+  <ul class="legend">
+    <li><span class="swatch band"></span>Entre percentil 10 y 90</li>
+    <li><span class="swatch"></span>Percentil 50 (mediana)</li>
+    <li><span class="swatch ink"></span>Total aportado</li>
+  </ul>
+
+  <table class="finales">
+    <caption>Saldo al final del plazo, 1.000 escenarios simulados</caption>
+    <thead>
+      <tr><th scope="col">Escenario</th><th scope="col">Saldo final</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">Percentil 10 (malo, no el peor)</th><td class="num" data-p10>—</td></tr>
+      <tr><th scope="row">Percentil 50 (del medio)</th><td class="num" data-p50>—</td></tr>
+      <tr><th scope="row">Percentil 90 (bueno, no el mejor)</th><td class="num" data-p90>—</td></tr>
+    </tbody>
+  </table>
+  <p class="summary" data-summary aria-live="polite"></p>
+  <Supuestos />
+  <div class="aviso"><Disclaimer /></div>
+</section>
+
+<style>
+  .pesos {
+    border: 0;
+    padding: 0;
+    margin: 0 0 1rem;
+    min-width: 0;
+  }
+
+  .pesos legend {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding: 0;
+  }
+
+  .pesos .hint {
+    font-family: var(--sans);
+    font-weight: 400;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+
+  caption {
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    padding-bottom: 0.25rem;
+  }
+
+  .finales tbody th {
+    font-size: 0.95rem;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    color: var(--ink);
+    border-bottom-color: var(--rule);
+  }
+
+  .finales td {
+    text-align: right;
+    font-weight: 600;
+  }
+
+  .aviso {
+    margin-top: 1.25rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--ink);
+  }
+</style>
+
+<script>
+  import { ASSET_IDS, monteCarlo, normalize, portfolioStats, type AssetId, type Weights } from '../../lib/finance';
+  import { formatCLP, formatCompactCLP, formatPct } from '../../lib/format';
+  import { COLOR, chart, el, linear, niceMax, path, xAxisYears, yAxis } from '../../lib/svg';
+
+  const SEED = 20240601;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
+
+  document.querySelectorAll<HTMLElement>('[data-simulador]').forEach((root) => {
+    const form = root.querySelector<HTMLFormElement>('[data-form]')!;
+    const box = root.querySelector<HTMLElement>('[data-chart]')!;
+    const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+    const slider = (id: AssetId) => root.querySelector<HTMLInputElement>(`[data-peso="${id}"]`)!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+    let pendiente = 0;
+
+    function rebalancear(cambiado: AssetId) {
+      const fijo = clamp(slider(cambiado).valueAsNumber, 0, 100);
+      const otros = ASSET_IDS.filter((id) => id !== cambiado);
+      const resto = 100 - fijo;
+      const suma = otros.reduce((s, id) => s + slider(id).valueAsNumber, 0);
+      const nuevos = otros.map((id) => (suma === 0 ? resto / otros.length : (slider(id).valueAsNumber / suma) * resto));
+      const redondeados = nuevos.map(Math.floor);
+      // Hand leftover points from flooring to the largest remainders so the total is exactly 100.
+      let faltan = resto - redondeados.reduce((s, v) => s + v, 0);
+      nuevos
+        .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+        .sort((a, b) => b.frac - a.frac)
+        .forEach(({ i }) => {
+          if (faltan > 0) {
+            redondeados[i]++;
+            faltan--;
+          }
+        });
+      otros.forEach((id, i) => (slider(id).value = String(redondeados[i])));
+    }
+
+    function render() {
+      pendiente = 0;
+      const raw = Object.fromEntries(ASSET_IDS.map((id) => [id, slider(id).valueAsNumber])) as Weights;
+      const weights = normalize(raw);
+      ASSET_IDS.forEach((id) => (q(`[data-out="${id}"]`).textContent = formatPct(weights[id]).replace(',0', '')));
+
+      const inicial = clamp(field('inicial').valueAsNumber, 0, 1e12);
+      const aporteMensual = clamp(field('aporte').valueAsNumber, 0, 1e10);
+      const anios = Math.round(clamp(field('anios').valueAsNumber, 1, 50));
+      const stats = portfolioStats(weights);
+      const mc = monteCarlo({ weights, inicial, aporteMensual, anios, seed: SEED });
+      const aportado = (t: number) => inicial + aporteMensual * 12 * t;
+
+      q('[data-ret]').textContent = formatPct(stats.retorno);
+      q('[data-vol]').textContent = formatPct(stats.volatilidad);
+      q('[data-aportado]').textContent = formatCLP(aportado(anios));
+      q('[data-prob]').textContent = formatPct(mc.probPerdida);
+      q('[data-p10]').textContent = formatCLP(mc.p10.at(-1)!);
+      q('[data-p50]').textContent = formatCLP(mc.p50.at(-1)!);
+      q('[data-p90]').textContent = formatCLP(mc.p90.at(-1)!);
+
+      const c = chart(box, 640, 340);
+      const max = niceMax(Math.max(...mc.p90));
+      const x = linear(0, anios, c.pad.l, c.width - c.pad.r);
+      const y = linear(0, max, c.height - c.pad.b, c.pad.t);
+      yAxis(c, max, y, formatCompactCLP);
+      xAxisYears(c, anios, x);
+      const top = mc.anios.map((t) => [x(t), y(mc.p90[t])] as const);
+      const bottom = mc.anios.map((t) => [x(t), y(mc.p10[t])] as const).reverse();
+      c.svg.append(
+        el('path', { d: `${path(top)} ${path(bottom).replace(/^M/, 'L')} Z`, fill: COLOR.accentBand }),
+        el('path', { d: path(top), fill: 'none', stroke: COLOR.accent, 'stroke-width': 1, 'stroke-opacity': 0.6 }),
+        el('path', { d: path(bottom), fill: 'none', stroke: COLOR.accent, 'stroke-width': 1, 'stroke-opacity': 0.6 }),
+        el('path', { d: path(mc.anios.map((t) => [x(t), y(aportado(t))])), fill: 'none', stroke: COLOR.inkSoft, 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }),
+        el('path', { d: path(mc.anios.map((t) => [x(t), y(mc.p50[t])])), fill: 'none', stroke: COLOR.accent, 'stroke-width': 3 }),
+      );
+
+      const texto =
+        `Tras ${anios} años, en la mitad de los 1.000 escenarios el saldo supera ${formatCLP(mc.p50.at(-1)!)}. ` +
+        `El 80% de los escenarios queda entre ${formatCLP(mc.p10.at(-1)!)} y ${formatCLP(mc.p90.at(-1)!)}. ` +
+        `En ${formatPct(mc.probPerdida)} de los escenarios terminas con menos de lo aportado (${formatCLP(aportado(anios))}).`;
+      q('[data-summary]').textContent = texto;
+      box.setAttribute('aria-label', `Gráfico de abanico de resultados. ${texto}`);
+    }
+
+    const programar = () => {
+      if (!pendiente) pendiente = requestAnimationFrame(render);
+    };
+
+    form.addEventListener('input', (ev) => {
+      const target = ev.target as HTMLInputElement;
+      const id = target.dataset.peso as AssetId | undefined;
+      if (id) rebalancear(id);
+      programar();
+    });
+    form.addEventListener('submit', (e) => e.preventDefault());
+    render();
+  });
+</script>

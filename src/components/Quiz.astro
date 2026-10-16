@@ -1,0 +1,185 @@
+---
+interface Props {
+  slug: string;
+  quiz: { pregunta: string; opciones: string[]; correcta: number; explicacion: string }[];
+}
+
+const { slug, quiz } = Astro.props;
+---
+
+<section class="quiz widget" aria-labelledby="quiz-titulo" data-quiz={slug} data-total={quiz.length}>
+  <h2 id="quiz-titulo">Comprueba lo que aprendiste</h2>
+  <p class="intro">Responde las {quiz.length} preguntas para marcar esta lección como completada.</p>
+  <ol class="preguntas">
+    {
+      quiz.map((q, i) => (
+        <li>
+          <form class="pregunta" data-correcta={q.correcta} novalidate>
+            <fieldset>
+              <legend>{q.pregunta}</legend>
+              {q.opciones.map((op, j) => (
+                <label class="opcion">
+                  <input type="radio" name={`q${i}`} value={j} required />
+                  <span>{op}</span>
+                </label>
+              ))}
+            </fieldset>
+            <button type="submit" class="button secondary">Comprobar</button>
+            <div class="feedback" role="status" aria-live="polite" hidden>
+              <p class="veredicto" data-veredicto />
+              <p class="explicacion">{q.explicacion}</p>
+            </div>
+          </form>
+        </li>
+      ))
+    }
+  </ol>
+  <p class="resultado" data-resultado role="status" aria-live="polite" hidden></p>
+</section>
+
+<style>
+  .intro {
+    color: var(--ink-soft);
+  }
+
+  .preguntas {
+    padding-left: 1.4rem;
+    margin: 0;
+  }
+
+  .preguntas > li {
+    margin: 0 0 1.75rem;
+    font-family: var(--serif);
+    font-size: 1.1rem;
+  }
+
+  .pregunta {
+    font-family: var(--sans);
+    font-size: 1rem;
+  }
+
+  fieldset {
+    border: 0;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    min-width: 0;
+  }
+
+  legend {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    padding: 0;
+  }
+
+  .opcion {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+  }
+
+  .opcion input {
+    margin-top: 0.35rem;
+    accent-color: var(--accent);
+  }
+
+  .opcion[data-estado='correcta'] {
+    background: rgb(31 95 74 / 0.1);
+  }
+
+  .opcion[data-estado='incorrecta'] {
+    background: rgb(155 44 31 / 0.08);
+  }
+
+  .feedback {
+    margin-top: 0.75rem;
+    padding-left: 0.9rem;
+    border-left: 3px solid var(--accent);
+  }
+
+  .feedback[data-ok='false'] {
+    border-left-color: var(--bad);
+  }
+
+  .veredicto {
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+  }
+
+  .feedback[data-ok='true'] .veredicto {
+    color: var(--accent);
+  }
+
+  .feedback[data-ok='false'] .veredicto {
+    color: var(--bad);
+  }
+
+  .explicacion {
+    margin: 0;
+  }
+
+  .resultado {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    margin: 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+  }
+</style>
+
+<script>
+  import { leerProgreso, marcarCompletada } from '../lib/progreso';
+
+  document.querySelectorAll<HTMLElement>('[data-quiz]').forEach((root) => {
+    const slug = root.dataset.quiz!;
+    const total = Number(root.dataset.total);
+    const resultado = root.querySelector<HTMLElement>('[data-resultado]')!;
+    let respondidas = 0;
+    let correctas = 0;
+
+    if (leerProgreso().includes(slug)) {
+      resultado.hidden = false;
+      resultado.textContent = 'Ya completaste esta lección. Puedes volver a responder si quieres repasar.';
+    }
+
+    root.querySelectorAll<HTMLFormElement>('form.pregunta').forEach((form) => {
+      form.addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        const elegida = form.querySelector<HTMLInputElement>('input[type="radio"]:checked');
+        const feedback = form.querySelector<HTMLElement>('.feedback')!;
+        const veredicto = form.querySelector<HTMLElement>('[data-veredicto]')!;
+        if (!elegida) {
+          feedback.hidden = false;
+          feedback.dataset.ok = 'false';
+          veredicto.textContent = 'Elige una opción antes de comprobar.';
+          form.querySelector<HTMLElement>('.explicacion')!.hidden = true;
+          return;
+        }
+
+        const correcta = Number(form.dataset.correcta);
+        const ok = Number(elegida.value) === correcta;
+        form.querySelectorAll<HTMLInputElement>('input[type="radio"]').forEach((input) => {
+          input.disabled = true;
+          const label = input.closest('label')!;
+          if (Number(input.value) === correcta) label.dataset.estado = 'correcta';
+          else if (input === elegida) label.dataset.estado = 'incorrecta';
+        });
+        form.querySelector('button')!.remove();
+        form.querySelector<HTMLElement>('.explicacion')!.hidden = false;
+        feedback.hidden = false;
+        feedback.dataset.ok = String(ok);
+        veredicto.textContent = ok ? 'Correcto.' : 'No exactamente.';
+
+        respondidas++;
+        if (ok) correctas++;
+        if (respondidas === total) {
+          marcarCompletada(slug);
+          resultado.hidden = false;
+          resultado.textContent = `Lección completada: ${correctas} de ${total} correctas.`;
+        }
+      });
+    });
+  });
+</script>

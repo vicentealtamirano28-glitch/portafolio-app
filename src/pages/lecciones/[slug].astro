@@ -1,0 +1,162 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Quiz from '../../components/Quiz.astro';
+import TiposDeActivo from '../../components/widgets/TiposDeActivo.astro';
+import RangoRetorno from '../../components/widgets/RangoRetorno.astro';
+import Diversificacion from '../../components/widgets/Diversificacion.astro';
+import InteresCompuesto from '../../components/widgets/InteresCompuesto.astro';
+import PerfilRiesgo from '../../components/widgets/PerfilRiesgo.astro';
+import Comisiones from '../../components/widgets/Comisiones.astro';
+import Simulador from '../../components/widgets/Simulador.astro';
+
+export async function getStaticPaths() {
+  const lecciones = (await getCollection('lecciones')).sort((a, b) => a.data.orden - b.data.orden);
+  return lecciones.map((leccion, i) => ({
+    params: { slug: leccion.id },
+    props: { leccion, prev: lecciones[i - 1], next: lecciones[i + 1], total: lecciones.length },
+  }));
+}
+
+interface Props {
+  leccion: CollectionEntry<'lecciones'>;
+  prev?: CollectionEntry<'lecciones'>;
+  next?: CollectionEntry<'lecciones'>;
+  total: number;
+}
+
+const WIDGETS = {
+  'que-es-un-portafolio': TiposDeActivo,
+  'riesgo-y-retorno': RangoRetorno,
+  diversificacion: Diversificacion,
+  'interes-compuesto-e-inflacion': InteresCompuesto,
+  'perfil-de-riesgo-y-asignacion': PerfilRiesgo,
+  'costos-y-rebalanceo': Comisiones,
+  simulador: Simulador,
+} as const satisfies Record<string, unknown>;
+
+const { leccion, prev, next, total } = Astro.props;
+const { Content } = await render(leccion);
+const Widget = WIDGETS[leccion.id as keyof typeof WIDGETS];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  inLanguage: 'es-CL',
+  mainEntity: leccion.data.faq.map((f) => ({
+    '@type': 'Question',
+    name: f.pregunta,
+    acceptedAnswer: { '@type': 'Answer', text: f.respuesta },
+  })),
+};
+---
+
+<Base title={leccion.data.titulo} description={leccion.data.resumen} jsonLd={jsonLd} ogType="article">
+  <article class="leccion">
+    <header>
+      <p class="eyebrow">Lección {leccion.data.orden} de {total} · {leccion.data.minutos} min de lectura</p>
+      <h1>{leccion.data.titulo}</h1>
+      <p class="resumen">{leccion.data.resumen}</p>
+    </header>
+    <div class="prosa">
+      <Content />
+    </div>
+    {Widget && <Widget />}
+    <Quiz slug={leccion.id} quiz={leccion.data.quiz} />
+    <nav class="paginacion" aria-label="Lecciones">
+      {
+        prev ? (
+          <a href={`/lecciones/${prev.id}`} rel="prev">
+            <span class="dir">Anterior</span>
+            {prev.data.titulo}
+          </a>
+        ) : (
+          <a href="/">
+            <span class="dir">Volver</span>
+            Inicio
+          </a>
+        )
+      }
+      {
+        next ? (
+          <a href={`/lecciones/${next.id}`} rel="next" class="sig">
+            <span class="dir">Siguiente</span>
+            {next.data.titulo}
+          </a>
+        ) : (
+          <a href="/glosario" class="sig">
+            <span class="dir">Para repasar</span>
+            Glosario
+          </a>
+        )
+      }
+    </nav>
+  </article>
+</Base>
+
+<style>
+  .leccion {
+    max-width: var(--measure);
+    margin: 0 auto;
+  }
+
+  header {
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 1.5rem;
+  }
+
+  .resumen {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .prosa :global(h2) {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+  }
+
+  .prosa :global(table) {
+    font-size: 0.95rem;
+  }
+
+  .paginacion {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 3rem;
+    border-top: 2px solid var(--ink);
+    padding-top: 1rem;
+  }
+
+  .paginacion a {
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    line-height: 1.35;
+    text-decoration: none;
+    color: var(--ink);
+    padding: 0.25rem 0;
+  }
+
+  .paginacion a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  .paginacion .sig {
+    text-align: right;
+  }
+
+  .dir {
+    display: block;
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    margin-bottom: 0.2rem;
+  }
+</style>

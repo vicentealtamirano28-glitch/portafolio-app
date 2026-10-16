@@ -1,0 +1,97 @@
+<section class="widget" aria-labelledby="com-titulo" data-comisiones>
+  <h2 id="com-titulo">¿Cuánto te cuesta la comisión?</h2>
+  <form data-form>
+    <div class="field">
+      <div class="slider-head">
+        <label for="com-comision">Comisión anual</label>
+        <output for="com-comision" data-out-comision>1,5%</output>
+      </div>
+      <input id="com-comision" name="comision" type="range" min="0" max="3" step="0.1" value="1.5" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="com-inicial">Monto inicial (CLP)</label>
+        <input id="com-inicial" name="inicial" type="number" inputmode="numeric" min="0" step="10000" value="1000000" />
+      </div>
+      <div class="field">
+        <label for="com-aporte">Aporte mensual (CLP)</label>
+        <input id="com-aporte" name="aporte" type="number" inputmode="numeric" min="0" step="5000" value="50000" />
+      </div>
+      <div class="field">
+        <label for="com-tasa">Retorno anual antes de comisión (%)</label>
+        <input id="com-tasa" name="tasa" type="number" inputmode="decimal" min="0" max="30" step="0.1" value="6" />
+      </div>
+      <div class="field">
+        <label for="com-anios">Años</label>
+        <input id="com-anios" name="anios" type="number" inputmode="numeric" min="1" max="60" step="1" value="30" />
+      </div>
+    </div>
+  </form>
+  <dl class="stats">
+    <div><dt>Sin comisión</dt><dd data-sin>—</dd></div>
+    <div><dt>Con comisión</dt><dd data-con>—</dd></div>
+    <div><dt>Pierdes</dt><dd data-perdida>—</dd></div>
+  </dl>
+  <div class="chart" data-chart role="img" aria-label="Saldo con y sin comisión"></div>
+  <ul class="legend">
+    <li><span class="swatch"></span>Sin comisión</li>
+    <li><span class="swatch ochre"></span>Con comisión</li>
+  </ul>
+  <p class="summary" data-summary aria-live="polite"></p>
+</section>
+
+<script>
+  import { compound, feeDrag } from '../../lib/finance';
+  import { formatCLP, formatCompactCLP, formatNum, formatPct } from '../../lib/format';
+  import { COLOR, chart, el, linear, niceMax, path, xAxisYears, yAxis } from '../../lib/svg';
+
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
+
+  document.querySelectorAll<HTMLElement>('[data-comisiones]').forEach((root) => {
+    const form = root.querySelector<HTMLFormElement>('[data-form]')!;
+    const box = root.querySelector<HTMLElement>('[data-chart]')!;
+    const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+
+    function render() {
+      const comisionAnual = clamp(field('comision').valueAsNumber, 0, 3) / 100;
+      const inicial = clamp(field('inicial').valueAsNumber, 0, 1e12);
+      const aporteMensual = clamp(field('aporte').valueAsNumber, 0, 1e10);
+      const tasaAnual = clamp(field('tasa').valueAsNumber, 0, 30) / 100;
+      const anios = Math.round(clamp(field('anios').valueAsNumber, 1, 60));
+      const r = feeDrag({ inicial, aporteMensual, tasaAnual, anios, comisionAnual });
+      const proporcion = r.sinComision > 0 ? r.perdida / r.sinComision : 0;
+
+      q('[data-out-comision]').textContent = `${formatNum(comisionAnual * 100)}%`;
+      q('[data-sin]').textContent = formatCLP(r.sinComision);
+      q('[data-con]').textContent = formatCLP(r.conComision);
+      q('[data-perdida]').textContent = `${formatCLP(r.perdida)} (${formatPct(proporcion)})`;
+
+      const sin = compound({ inicial, aporteMensual, tasaAnual, anios });
+      const con = compound({ inicial, aporteMensual, tasaAnual: tasaAnual - comisionAnual, anios });
+      const c = chart(box, 640, 320);
+      const max = niceMax(r.sinComision);
+      const x = linear(0, anios, c.pad.l, c.width - c.pad.r);
+      const y = linear(0, max, c.height - c.pad.b, c.pad.t);
+      yAxis(c, max, y, formatCompactCLP);
+      xAxisYears(c, anios, x);
+      const top = sin.map((p) => [x(p.anio), y(p.valorNominal)] as const);
+      const bottom = con.map((p) => [x(p.anio), y(p.valorNominal)] as const);
+      c.svg.append(
+        el('path', { d: `${path(top)} ${path([...bottom].reverse()).replace(/^M/, 'L')} Z`, fill: COLOR.ochreBand }),
+        el('path', { d: path(top), fill: 'none', stroke: COLOR.accent, 'stroke-width': 3 }),
+        el('path', { d: path(bottom), fill: 'none', stroke: COLOR.ochre, 'stroke-width': 3 }),
+      );
+
+      const texto =
+        `Con una comisión de ${formatNum(comisionAnual * 100)}% anual, en ${anios} años terminas con ${formatCLP(r.conComision)} ` +
+        `en vez de ${formatCLP(r.sinComision)}: dejas de tener ${formatCLP(r.perdida)}, el ${formatPct(proporcion)} del saldo.`;
+      q('[data-summary]').textContent = texto;
+      box.setAttribute('aria-label', `Gráfico de saldo con y sin comisión. ${texto}`);
+    }
+
+    form.addEventListener('input', render);
+    form.addEventListener('submit', (e) => e.preventDefault());
+    render();
+  });
+</script>

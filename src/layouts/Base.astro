@@ -1,0 +1,197 @@
+---
+import '../styles/global.css';
+import Disclaimer from '../components/Disclaimer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  jsonLd?: Record<string, unknown>;
+  ogType?: 'website' | 'article';
+}
+
+const { title, description, jsonLd, ogType = 'website' } = Astro.props;
+const SITE = 'Cuaderno de portafolios';
+const fullTitle = title === SITE ? title : `${title} · ${SITE}`;
+const path = Astro.url.pathname;
+
+const nav = [
+  { href: '/', label: 'Inicio' },
+  { href: '/lecciones/que-es-un-portafolio', label: 'Lecciones' },
+  { href: '/lecciones/simulador', label: 'Simulador' },
+  { href: '/glosario', label: 'Glosario' },
+];
+const clean = path.replace(/\/$/, '') || '/';
+const seccion =
+  clean === '/lecciones/simulador'
+    ? '/lecciones/simulador'
+    : clean.startsWith('/lecciones/')
+      ? '/lecciones/que-es-un-portafolio'
+      : clean;
+const isCurrent = (href: string) => href === seccion;
+
+// Only enforce CSP in production builds; the dev server injects inline scripts for HMR.
+const csp = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self' https://mindicador.cl",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+---
+
+<!doctype html>
+<html lang="es-CL">
+  <head>
+    <meta charset="utf-8" />
+    {import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={csp} />}
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f6f1e7" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:locale" content="es_CL" />
+    <meta property="og:site_name" content={SITE} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+  </head>
+  <body>
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <header class="masthead">
+      <div class="inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">§</span>
+          Cuaderno de portafolios
+        </a>
+        <nav aria-label="Principal">
+          <ul>
+            {
+              nav.map((item) => (
+                <li>
+                  <a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <main id="contenido">
+      <slot />
+    </main>
+    <footer class="colophon">
+      <div class="inner">
+        <Disclaimer />
+        <p class="small">
+          Indicadores económicos desde <a href="https://mindicador.cl">mindicador.cl</a>. Hecho con fines educativos
+          en Chile.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .skip {
+    position: absolute;
+    left: 0.5rem;
+    top: -3rem;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.5rem 0.8rem;
+    z-index: 10;
+  }
+
+  .skip:focus {
+    top: 0.5rem;
+  }
+
+  .inner {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+  }
+
+  .masthead {
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .masthead .inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1.5rem;
+    padding-top: 1rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .brand {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .brand-mark {
+    color: var(--accent);
+    margin-right: 0.15em;
+  }
+
+  nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  nav a {
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 0.95rem;
+    padding: 0.4rem 0;
+    display: inline-block;
+  }
+
+  nav a:hover,
+  nav a[aria-current='page'] {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.35em;
+  }
+
+  main {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+
+  .colophon {
+    border-top: 1px solid var(--ink);
+    background: var(--paper-deep);
+    font-size: 0.9rem;
+  }
+
+  .colophon .inner {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+    max-width: 72rem;
+  }
+
+  .small {
+    color: var(--ink-soft);
+    margin: 0.75rem 0 0;
+  }
+</style>

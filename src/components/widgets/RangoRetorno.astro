@@ -1,0 +1,107 @@
+---
+import { ASSETS } from '../../lib/finance';
+import Supuestos from '../Supuestos.astro';
+---
+
+<section class="widget" aria-labelledby="rango-titulo" data-rango>
+  <h2 id="rango-titulo">¿Cuánto puede variar un año?</h2>
+  <fieldset class="selector">
+    <legend class="label">Elige una clase de activo</legend>
+    {
+      ASSETS.map((a, i) => (
+        <label>
+          <input type="radio" name="rango-activo" value={a.id} checked={i === 0} />
+          {a.nombre}
+        </label>
+      ))
+    }
+  </fieldset>
+  <div class="chart" data-chart role="img" aria-label="Rango de retornos anuales"></div>
+  <ul class="legend">
+    <li><span class="swatch band" data-tone="accent"></span>Cerca de 2 de cada 3 años (± 1 volatilidad)</li>
+    <li><span class="swatch band" data-tone="ochre"></span>Cerca de 19 de cada 20 años (± 2 volatilidades)</li>
+  </ul>
+  <p class="summary" data-summary aria-live="polite"></p>
+  <Supuestos />
+</section>
+
+<style>
+  .selector {
+    border: 0;
+    padding: 0;
+    margin: 0 0 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+  }
+
+  .selector legend {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .selector label {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    min-height: 2.75rem;
+    cursor: pointer;
+  }
+
+  .selector input {
+    accent-color: var(--accent);
+  }
+</style>
+
+<script>
+  import { asset, type AssetId } from '../../lib/finance';
+  import { formatPct } from '../../lib/format';
+  import { COLOR, chart, el, linear } from '../../lib/svg';
+
+  const MIN = -0.3;
+  const MAX = 0.45;
+
+  document.querySelectorAll<HTMLElement>('[data-rango]').forEach((root) => {
+    const box = root.querySelector<HTMLElement>('[data-chart]')!;
+    const summary = root.querySelector<HTMLElement>('[data-summary]')!;
+
+    function render() {
+      const id = root.querySelector<HTMLInputElement>('input[name="rango-activo"]:checked')!.value as AssetId;
+      const a = asset(id);
+      const mu = a.retornoEsperado;
+      const s = a.volatilidad;
+      const c = chart(box, 640, 130, { t: 24, r: 20, b: 30, l: 20 });
+      const x = linear(MIN, MAX, c.pad.l, c.width - c.pad.r);
+      const y0 = 40;
+      const h = 44;
+
+      for (let t = -0.3; t <= MAX + 1e-9; t += 0.15) {
+        c.svg.append(
+          el('line', { x1: x(t), x2: x(t), y1: y0 - 8, y2: y0 + h + 8, class: 'grid' }),
+          el('text', { x: x(t), y: c.height - 6, 'text-anchor': 'middle', class: 'tick' }, formatPct(t)),
+        );
+      }
+      const lo2 = Math.max(MIN, mu - 2 * s);
+      const hi2 = Math.min(MAX, mu + 2 * s);
+      c.svg.append(
+        el('rect', { x: x(lo2), y: y0, width: x(hi2) - x(lo2), height: h, fill: COLOR.ochreBand }),
+        el('rect', { x: x(mu - s), y: y0, width: x(mu + s) - x(mu - s), height: h, fill: COLOR.accentBand }),
+        el('line', { x1: x(0), x2: x(0), y1: y0 - 14, y2: y0 + h + 8, stroke: COLOR.ink, 'stroke-width': 1.5 }),
+        el('text', { x: x(0) + 4, y: y0 - 16, class: 'tick' }, '0%'),
+        el('line', { x1: x(mu), x2: x(mu), y1: y0, y2: y0 + h, stroke: COLOR.accent, 'stroke-width': 3 }),
+        el('text', { x: x(mu), y: y0 - 6, 'text-anchor': 'middle', class: 'label' }, `esperado ${formatPct(mu)}`),
+      );
+
+      const texto =
+        `${a.nombre}: retorno esperado ${formatPct(mu)} y volatilidad ${formatPct(s)}. ` +
+        `Cerca de 2 de cada 3 años el resultado estaría entre ${formatPct(mu - s)} y ${formatPct(mu + s)}; ` +
+        `cerca de 19 de cada 20, entre ${formatPct(mu - 2 * s)} y ${formatPct(mu + 2 * s)}.`;
+      summary.textContent = texto;
+      box.setAttribute('aria-label', `Gráfico de rango de retornos. ${texto}`);
+    }
+
+    root.addEventListener('change', render);
+    render();
+  });
+</script>

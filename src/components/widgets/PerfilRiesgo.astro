@@ -1,0 +1,191 @@
+---
+import { RISK_QUIZ } from '../../lib/finance';
+import Supuestos from '../Supuestos.astro';
+---
+
+<section class="widget" aria-labelledby="perfil-titulo" data-perfil>
+  <h2 id="perfil-titulo">Cuestionario de perfil de riesgo</h2>
+  <form data-form novalidate>
+    {
+      RISK_QUIZ.map((p) => (
+        <fieldset>
+          <legend>{p.pregunta}</legend>
+          {p.opciones.map((op) => (
+            <label>
+              <input type="radio" name={p.id} value={op.puntos} required />
+              {op.texto}
+            </label>
+          ))}
+        </fieldset>
+      ))
+    }
+    <button type="submit" class="button">Ver mi perfil</button>
+    <p class="error" data-error role="alert" hidden></p>
+  </form>
+
+  <div class="resultado" data-resultado hidden>
+    <p class="eyebrow">Tu perfil según este cuestionario</p>
+    <h3 data-nombre tabindex="-1"></h3>
+    <p data-descripcion></p>
+    <div class="layout">
+      <div class="chart donut" data-chart role="img" aria-label="Asignación de ejemplo"></div>
+      <div>
+        <ul class="legend vertical" data-leyenda></ul>
+        <dl class="stats">
+          <div><dt>Retorno esperado</dt><dd data-retorno>—</dd></div>
+          <div><dt>Volatilidad</dt><dd data-vol>—</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p class="nota">Es una asignación de ejemplo para ilustrar la lógica, no una recomendación personal.</p>
+    <Supuestos />
+  </div>
+</section>
+
+<style>
+  fieldset {
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    margin: 0 0 1rem;
+    padding: 0 0 0.75rem;
+    min-width: 0;
+  }
+
+  legend {
+    font-weight: 600;
+    padding: 0;
+    margin-bottom: 0.4rem;
+  }
+
+  fieldset label {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    padding: 0.3rem 0;
+    cursor: pointer;
+  }
+
+  fieldset input {
+    margin-top: 0.4rem;
+    accent-color: var(--accent);
+  }
+
+  .error {
+    color: var(--bad);
+    margin-top: 0.75rem;
+  }
+
+  .resultado {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--ink);
+  }
+
+  .resultado h3 {
+    margin-top: 0;
+    font-size: 1.8rem;
+  }
+
+  .layout {
+    display: grid;
+    gap: 1.5rem;
+    align-items: center;
+  }
+
+  @media (min-width: 40rem) {
+    .layout {
+      grid-template-columns: minmax(12rem, 16rem) 1fr;
+    }
+  }
+
+  .donut {
+    max-width: 16rem;
+  }
+
+  .vertical {
+    flex-direction: column;
+  }
+
+  .nota {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+  }
+</style>
+
+<script>
+  import { ASSETS, portfolioStats, RISK_QUIZ, riskProfile, type AssetId, type Weights } from '../../lib/finance';
+  import { formatPct } from '../../lib/format';
+  import { COLOR, chart, el } from '../../lib/svg';
+
+  const COLORES: Record<AssetId, string> = { rv: COLOR.accent, rf: COLOR.ochre, caja: '#8F8472' };
+  const NOMBRE_PERFIL = { conservador: 'Conservador', moderado: 'Moderado', agresivo: 'Agresivo' } as const;
+
+  function arco(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number): string {
+    const p = (r: number, a: number) => `${(cx + r * Math.sin(a)).toFixed(2)},${(cy - r * Math.cos(a)).toFixed(2)}`;
+    const grande = a1 - a0 > Math.PI ? 1 : 0;
+    return `M${p(r1, a0)} A${r1},${r1} 0 ${grande} 1 ${p(r1, a1)} L${p(r0, a1)} A${r0},${r0} 0 ${grande} 0 ${p(r0, a0)} Z`;
+  }
+
+  function donut(box: HTMLElement, w: Weights) {
+    const c = chart(box, 200, 200, { t: 0, r: 0, b: 0, l: 0 });
+    let a = 0;
+    for (const asset of ASSETS) {
+      const share = w[asset.id];
+      if (share <= 0) continue;
+      // A full 360° arc degenerates (start = end point), so cap just below it.
+      const fin = a + Math.min(share, 0.9999) * 2 * Math.PI;
+      c.svg.append(el('path', { d: arco(100, 100, 58, 96, a, fin), fill: COLORES[asset.id], stroke: COLOR.paper, 'stroke-width': 2 }));
+      a = fin;
+    }
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-perfil]').forEach((root) => {
+    const form = root.querySelector<HTMLFormElement>('[data-form]')!;
+    const error = root.querySelector<HTMLElement>('[data-error]')!;
+    const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const elegidas = RISK_QUIZ.map((p) => form.querySelector<HTMLInputElement>(`input[name="${p.id}"]:checked`));
+      const faltan = elegidas.filter((x) => !x).length;
+      if (faltan > 0) {
+        error.hidden = false;
+        error.textContent = faltan === 1 ? 'Falta responder 1 pregunta.' : `Faltan responder ${faltan} preguntas.`;
+        return;
+      }
+      error.hidden = true;
+
+      const puntaje = elegidas.reduce((s, x) => s + Number(x!.value), 0);
+      const perfil = riskProfile(puntaje);
+      const stats = portfolioStats(perfil.weights);
+
+      q('[data-nombre]').textContent = `${NOMBRE_PERFIL[perfil.id]} (puntaje ${puntaje} de 15)`;
+      q('[data-descripcion]').textContent = perfil.descripcion;
+      q('[data-retorno]').textContent = formatPct(stats.retorno);
+      q('[data-vol]').textContent = formatPct(stats.volatilidad);
+
+      const leyenda = q('[data-leyenda]');
+      leyenda.replaceChildren(
+        ...ASSETS.map((a) => {
+          const li = document.createElement('li');
+          const sw = document.createElement('span');
+          sw.className = 'swatch';
+          sw.style.borderTopColor = COLORES[a.id];
+          li.append(sw, `${a.nombre}: ${formatPct(perfil.weights[a.id])}`);
+          return li;
+        }),
+      );
+
+      const box = q('[data-chart]');
+      donut(box, perfil.weights);
+      box.setAttribute(
+        'aria-label',
+        `Gráfico de dona con la asignación de ejemplo: ${ASSETS.map((a) => `${a.nombre} ${formatPct(perfil.weights[a.id])}`).join(', ')}.`,
+      );
+
+      const resultado = q('[data-resultado]');
+      resultado.hidden = false;
+      q('[data-nombre]').focus();
+    });
+  });
+</script>

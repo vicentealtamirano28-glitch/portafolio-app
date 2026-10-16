@@ -1,0 +1,368 @@
+@import '@fontsource/fraunces/400.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/fraunces/400-italic.css';
+@import '@fontsource-variable/inter';
+
+:root {
+  --paper: #f6f1e7;
+  --paper-deep: #ede5d3;
+  --ink: #1f1b16;
+  --ink-soft: #4a4238;
+  --rule: #cfc3ab;
+  --accent: #1f5f4a;
+  --accent-ink: #174a39;
+  --ochre: #b7791f;
+  --ochre-ink: #8a5a12;
+  --bad: #9b2c1f;
+  --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --measure: 68ch;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+  margin: 0 0 0.5em;
+}
+
+h2 {
+  font-size: clamp(1.4rem, 1.2rem + 0.9vw, 1.8rem);
+  margin: 2em 0 0.6em;
+}
+
+h3 {
+  font-size: 1.2rem;
+  margin: 1.6em 0 0.4em;
+}
+
+p,
+ul,
+ol {
+  margin: 0 0 1em;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--accent-ink);
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ochre);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 2.5rem 0;
+}
+
+blockquote {
+  margin: 1.2em 0;
+  padding: 0.2em 0 0.2em 1.1em;
+  border-left: 2px solid var(--ochre);
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.2em 0;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.45em 0.6em 0.45em 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  border-bottom-color: var(--ink);
+}
+
+.num,
+output,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.eyebrow {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+
+.button {
+  display: inline-block;
+  font: 600 1rem/1.2 var(--sans);
+  padding: 0.8em 1.2em;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--paper);
+  text-decoration: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--accent-ink);
+  color: var(--paper);
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+.button.secondary:hover {
+  background: var(--paper-deep);
+}
+
+/* Shared widget form styles: widgets are separate components but share one vocabulary. */
+.widget {
+  margin: 2.5rem 0;
+  padding: 1.5rem 0;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+
+.widget > h2:first-child,
+.widget > h3:first-child {
+  margin-top: 0;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 1rem;
+}
+
+.field label,
+.field .label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field .hint {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0 1.25rem;
+}
+
+input[type='number'],
+select {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: #fffdf8;
+  border: 1px solid #8f8472;
+  border-radius: 2px;
+  padding: 0.45em 0.6em;
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  min-height: 2rem;
+}
+
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.slider-head output {
+  font-weight: 600;
+}
+
+.chart {
+  margin: 1.25rem 0 0.5rem;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: var(--sans);
+}
+
+.chart-svg .grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.chart-svg .tick {
+  font-size: 12px;
+  fill: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-svg .label {
+  font-size: 13px;
+  fill: var(--ink);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 1.4rem;
+  height: 0;
+  border-top: 3px solid var(--accent);
+}
+
+.swatch.ochre {
+  border-top-color: var(--ochre);
+}
+
+.swatch.ink {
+  border-top: 2px dashed var(--ink-soft);
+}
+
+.swatch.band {
+  height: 0.7rem;
+  border: 0;
+  background: rgb(31 95 74 / 0.18);
+}
+
+.swatch.band[data-tone='accent'] {
+  background: rgb(31 95 74 / 0.35);
+}
+
+.swatch.band[data-tone='ochre'] {
+  background: rgb(183 121 31 / 0.25);
+}
+
+.summary {
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin: 0.75rem 0 0;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.stats div {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.5rem;
+}
+
+.stats dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.stats dd {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

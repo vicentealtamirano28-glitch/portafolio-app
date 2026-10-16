@@ -1,0 +1,115 @@
+---
+import { asset } from '../../lib/finance';
+import Supuestos from '../Supuestos.astro';
+
+const a = asset('rv');
+const b = asset('rf');
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+---
+
+<section
+  class="widget"
+  aria-labelledby="div-titulo"
+  data-diversificacion
+  data-vol-a={a.volatilidad}
+  data-vol-b={b.volatilidad}
+>
+  <h2 id="div-titulo">Dos activos, una correlación</h2>
+  <p>
+    {`Activo A: ${a.nombre.toLowerCase()}, volatilidad ${pct(a.volatilidad)}. Activo B: ${b.nombre.toLowerCase()}, volatilidad ${pct(b.volatilidad)}.`}
+  </p>
+  <div class="field-row">
+    <div class="field">
+      <div class="slider-head">
+        <label for="div-peso">Peso en A</label>
+        <output for="div-peso" data-out-peso>60%</output>
+      </div>
+      <input id="div-peso" type="range" min="0" max="100" step="1" value="60" />
+      <span class="hint">El resto (B) se calcula solo.</span>
+    </div>
+    <div class="field">
+      <div class="slider-head">
+        <label for="div-rho">Correlación entre A y B</label>
+        <output for="div-rho" data-out-rho>0,2</output>
+      </div>
+      <input id="div-rho" type="range" min="-1" max="1" step="0.1" value="0.2" />
+      <span class="hint">−1: opuestos · 0: sin relación · +1: idénticos</span>
+    </div>
+  </div>
+  <dl class="stats">
+    <div><dt>Volatilidad del portafolio</dt><dd data-vol>—</dd></div>
+    <div><dt>Promedio ponderado</dt><dd data-prom>—</dd></div>
+    <div><dt>Reducción por diversificar</dt><dd data-red>—</dd></div>
+  </dl>
+  <div class="chart" data-chart role="img" aria-label="Volatilidad del portafolio según el peso en A"></div>
+  <ul class="legend">
+    <li><span class="swatch"></span>Volatilidad real del portafolio</li>
+    <li><span class="swatch ink"></span>Promedio ponderado (sin beneficio de diversificar)</li>
+  </ul>
+  <p class="summary" data-summary aria-live="polite"></p>
+  <Supuestos />
+</section>
+
+<script>
+  import { twoAssetVol } from '../../lib/finance';
+  import { formatNum, formatPct } from '../../lib/format';
+  import { COLOR, chart, el, linear, niceMax, path } from '../../lib/svg';
+
+  document.querySelectorAll<HTMLElement>('[data-diversificacion]').forEach((root) => {
+    const volA = Number(root.dataset.volA);
+    const volB = Number(root.dataset.volB);
+    const peso = root.querySelector<HTMLInputElement>('#div-peso')!;
+    const rho = root.querySelector<HTMLInputElement>('#div-rho')!;
+    const box = root.querySelector<HTMLElement>('[data-chart]')!;
+    const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+    const yMax = niceMax(Math.max(volA, volB) * 1.1);
+
+    function render() {
+      const w = Number(peso.value) / 100;
+      const r = Number(rho.value);
+      const vol = twoAssetVol(w, volA, volB, r);
+      const prom = w * volA + (1 - w) * volB;
+
+      q('[data-out-peso]').textContent = `${peso.value}% A · ${100 - Number(peso.value)}% B`;
+      q('[data-out-rho]').textContent = formatNum(r);
+      q('[data-vol]').textContent = formatPct(vol);
+      q('[data-prom]').textContent = formatPct(prom);
+      q('[data-red]').textContent = `${formatNum((prom - vol) * 100)} pts`;
+
+      const c = chart(box, 640, 300, { t: 16, r: 16, b: 40, l: 52 });
+      const x = linear(0, 1, c.pad.l, c.width - c.pad.r);
+      const y = linear(0, yMax, c.height - c.pad.b, c.pad.t);
+
+      for (let i = 0; i <= 4; i++) {
+        const v = (yMax / 4) * i;
+        c.svg.append(
+          el('line', { x1: c.pad.l, x2: c.width - c.pad.r, y1: y(v), y2: y(v), class: 'grid' }),
+          el('text', { x: c.pad.l - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'tick' }, formatPct(v)),
+        );
+      }
+      for (let i = 0; i <= 4; i++) {
+        c.svg.append(el('text', { x: x(i / 4), y: c.height - c.pad.b + 18, 'text-anchor': 'middle', class: 'tick' }, `${i * 25}%`));
+      }
+      c.svg.append(el('text', { x: c.width - c.pad.r, y: c.height - 4, 'text-anchor': 'end', class: 'tick' }, 'peso en A'));
+
+      const curva: [number, number][] = [];
+      for (let i = 0; i <= 100; i++) curva.push([x(i / 100), y(twoAssetVol(i / 100, volA, volB, r))]);
+      c.svg.append(
+        el('path', { d: path([[x(0), y(volB)], [x(1), y(volA)]]), fill: 'none', stroke: COLOR.inkSoft, 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }),
+        el('path', { d: path(curva), fill: 'none', stroke: COLOR.accent, 'stroke-width': 3 }),
+        el('line', { x1: x(w), x2: x(w), y1: y(prom), y2: y(vol), stroke: COLOR.ochre, 'stroke-width': 2 }),
+        el('circle', { cx: x(w), cy: y(vol), r: 6, fill: COLOR.accent, stroke: COLOR.paper, 'stroke-width': 2 }),
+      );
+
+      const texto =
+        `Con ${peso.value}% en A y correlación ${formatNum(r)}, la volatilidad del portafolio es ${formatPct(vol)}, ` +
+        `frente a ${formatPct(prom)} si no hubiera beneficio de diversificación.`;
+      q('[data-summary]').textContent = texto;
+      box.setAttribute('aria-label', `Curva de volatilidad según el peso en A. ${texto}`);
+    }
+
+    peso.addEventListener('input', render);
+    rho.addEventListener('input', render);
+    render();
+  });
+</script>

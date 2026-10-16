@@ -1,0 +1,86 @@
+---
+const activos = [
+  { nombre: 'Depósito a plazo', eres: 'Prestamista de un banco', ganas: 'Tasa fija conocida', riesgo: 1 },
+  { nombre: 'Bono', eres: 'Prestamista de una empresa o del Estado', ganas: 'Intereses (cupones)', riesgo: 2 },
+  { nombre: 'Fondo mutuo', eres: 'Dueño de cuotas de una canasta', ganas: 'Lo que rinda la canasta, menos comisión', riesgo: 3 },
+  { nombre: 'ETF', eres: 'Dueño de cuotas que se transan en bolsa', ganas: 'Lo que rinda el índice, menos comisión', riesgo: 3 },
+  { nombre: 'Acción', eres: 'Dueño de una parte de una empresa', ganas: 'Dividendos y cambios de precio', riesgo: 4 },
+];
+const NIVELES = ['', 'Bajo', 'Medio-bajo', 'Variable', 'Alto'];
+---
+
+<section class="widget" aria-labelledby="tipos-titulo">
+  <h2 id="tipos-titulo">Los activos, de un vistazo</h2>
+  <p>
+    El riesgo de fondos mutuos y ETFs depende de en qué invierten: hay fondos de renta fija muy estables y fondos de
+    acciones muy volátiles.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Activo</th>
+          <th scope="col">Qué eres</th>
+          <th scope="col">Cómo ganas</th>
+          <th scope="col">Riesgo típico</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          activos.map((a) => (
+            <tr>
+              <th scope="row">{a.nombre}</th>
+              <td>{a.eres}</td>
+              <td>{a.ganas}</td>
+              <td>
+                <span class="nivel" aria-hidden="true">
+                  {[1, 2, 3, 4].map((n) => (
+                    <span class:list={['punto', { lleno: n <= a.riesgo }]} />
+                  ))}
+                </span>
+                {NIVELES[a.riesgo]}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 34rem;
+  }
+
+  tbody th {
+    font-family: var(--serif);
+    font-size: 1rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink);
+    border-bottom-color: var(--rule);
+  }
+
+  .nivel {
+    display: inline-flex;
+    gap: 3px;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+
+  .punto {
+    width: 0.6rem;
+    height: 0.6rem;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+  }
+
+  .punto.lleno {
+    background: var(--accent);
+  }
+</style>

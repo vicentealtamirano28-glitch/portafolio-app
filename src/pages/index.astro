@@ -1,0 +1,200 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Indicadores from '../components/Indicadores.astro';
+
+const lecciones = (await getCollection('lecciones')).sort((a, b) => a.data.orden - b.data.orden);
+const primera = lecciones[0];
+const totalMinutos = lecciones.reduce((s, l) => s + l.data.minutos, 0);
+---
+
+<Base
+  title="Cuaderno de portafolios"
+  description="Aprende cómo funciona un portafolio de inversión: riesgo, retorno, diversificación, interés compuesto, inflación, comisiones y simulación. Curso educativo gratuito en español de Chile."
+>
+  <div class="portada">
+    <div class="intro">
+      <p class="eyebrow">Un curso corto · {lecciones.length} lecciones · unos {totalMinutos} minutos</p>
+      <h1>Cómo funciona un portafolio de inversión, explicado con números que puedes mover.</h1>
+      <p class="bajada">
+        Vas a entender qué son el riesgo y el retorno, por qué diversificar baja la volatilidad, cómo la inflación y las
+        comisiones se comen tus ganancias, y cómo leer una simulación de mil futuros posibles. Cada lección trae una
+        herramienta interactiva y un par de preguntas para comprobar lo aprendido.
+      </p>
+      <p>
+        <a class="button" href={`/lecciones/${primera.id}`}>Empieza por la lección 1 ({primera.data.minutos} min)</a>
+      </p>
+      <p class="nota">
+        Esto es material educativo, no asesoría. No te vamos a decir en qué invertir; te vamos a ayudar a entender
+        lo que te ofrezcan.
+      </p>
+    </div>
+    <aside class="lateral">
+      <Indicadores />
+    </aside>
+  </div>
+
+  <section class="indice" aria-labelledby="indice-titulo">
+    <h2 id="indice-titulo">Las lecciones</h2>
+    <p class="progreso" data-progreso aria-live="polite"></p>
+    <ol data-lecciones>
+      {
+        lecciones.map((l) => (
+          <li data-slug={l.id}>
+            <span class="n num" aria-hidden="true">
+              {String(l.data.orden).padStart(2, '0')}
+            </span>
+            <div>
+              <a href={`/lecciones/${l.id}`}>{l.data.titulo}</a>
+              <p>{l.data.resumen}</p>
+            </div>
+            <span class="estado">
+              <span class="min num">{l.data.minutos} min</span>
+              <span class="hecho" hidden>
+                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Completada
+              </span>
+            </span>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</Base>
+
+<style>
+  .portada {
+    display: grid;
+    gap: 2.5rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  @media (min-width: 56rem) {
+    .portada {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: 4rem;
+    }
+  }
+
+  .intro {
+    max-width: var(--measure);
+  }
+
+  h1 {
+    font-weight: 400;
+    font-size: clamp(2rem, 1.3rem + 3vw, 3.25rem);
+  }
+
+  .bajada {
+    font-size: 1.15rem;
+  }
+
+  .nota {
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+    border-left: 2px solid var(--ochre);
+    padding-left: 0.8rem;
+  }
+
+  .indice {
+    max-width: 52rem;
+  }
+
+  .progreso {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.25rem 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  @media (min-width: 40rem) {
+    li {
+      grid-template-columns: 3rem 1fr 8rem;
+    }
+  }
+
+  .n {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    line-height: 1.2;
+    color: var(--ochre-ink);
+  }
+
+  li a {
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  li a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  li p {
+    margin: 0.2rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  .estado {
+    grid-column: 2;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+  }
+
+  @media (min-width: 40rem) {
+    .estado {
+      grid-column: 3;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.2rem;
+    }
+  }
+
+  .hecho:not([hidden]) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  import { leerProgreso } from '../lib/progreso';
+
+  const hechas = new Set(leerProgreso());
+  const items = document.querySelectorAll<HTMLElement>('[data-lecciones] [data-slug]');
+  let n = 0;
+  items.forEach((li) => {
+    if (!hechas.has(li.dataset.slug!)) return;
+    n++;
+    li.querySelector<HTMLElement>('.hecho')!.hidden = false;
+  });
+  const progreso = document.querySelector<HTMLElement>('[data-progreso]');
+  if (progreso) {
+    progreso.textContent =
+      n === 0 ? 'Aún no completas ninguna lección.' : `Llevas ${n} de ${items.length} lecciones completadas.`;
+  }
+</script>

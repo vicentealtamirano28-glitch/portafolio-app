@@ -1,0 +1,136 @@
+---
+const items = [
+  { id: 'uf', nombre: 'UF', detalle: 'Unidad de Fomento' },
+  { id: 'dolar', nombre: 'Dólar observado', detalle: 'pesos por dólar' },
+  { id: 'ipc', nombre: 'IPC mensual', detalle: 'variación del mes' },
+  { id: 'ipc12', nombre: 'IPC 12 meses', detalle: 'inflación anual' },
+  { id: 'tpm', nombre: 'TPM', detalle: 'tasa del Banco Central' },
+];
+---
+
+<section class="indicadores" aria-labelledby="ind-titulo" data-indicadores>
+  <h2 id="ind-titulo">Indicadores de hoy</h2>
+  <p class="estado" data-estado aria-live="polite">Cargando indicadores…</p>
+  <dl>
+    {
+      items.map((it) => (
+        <div data-item={it.id}>
+          <dt>
+            {it.nombre} <span class="detalle">{it.detalle}</span>
+          </dt>
+          <dd>
+            <span class="valor num" data-valor>—</span>
+            <span class="fecha" data-fecha />
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+  <p class="fuente">
+    Fuente: <a href="https://mindicador.cl">mindicador.cl</a>, que publica datos del Banco Central de Chile y el INE. Se
+    actualiza como máximo cada 6 horas en este navegador.
+  </p>
+</section>
+
+<style>
+  .indicadores {
+    border-top: 2px solid var(--ink);
+    padding-top: 1rem;
+  }
+
+  h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1.35rem;
+  }
+
+  dl {
+    margin: 0.75rem 0;
+  }
+
+  dl div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  dt {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .detalle {
+    display: block;
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+
+  .valor {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+  }
+
+  .fecha {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }
+
+  .estado,
+  .fuente {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .estado[data-error] {
+    color: var(--bad);
+  }
+</style>
+
+<script>
+  import { getIndicadores, getIpc12 } from '../lib/indicadores';
+  import { formatFecha, formatMes, formatNum, formatPct } from '../lib/format';
+
+  const roots = document.querySelectorAll<HTMLElement>('[data-indicadores]');
+
+  function set(root: HTMLElement, id: string, valor: string, fecha: string) {
+    const item = root.querySelector(`[data-item="${id}"]`);
+    if (!item) return;
+    item.querySelector('[data-valor]')!.textContent = valor;
+    item.querySelector('[data-fecha]')!.textContent = fecha;
+  }
+
+  async function render(root: HTMLElement) {
+    const estado = root.querySelector<HTMLElement>('[data-estado]')!;
+    const [ind, ipc12] = await Promise.all([getIndicadores(), getIpc12()]);
+
+    if (!ind) {
+      estado.textContent = 'Indicadores no disponibles en este momento.';
+      estado.dataset.error = '';
+    } else {
+      estado.textContent = '';
+      estado.hidden = true;
+      set(root, 'uf', `$${formatNum(ind.uf.valor)}`, formatFecha(ind.uf.fecha));
+      set(root, 'dolar', `$${formatNum(ind.dolar.valor)}`, formatFecha(ind.dolar.fecha));
+      set(root, 'ipc', `${formatNum(ind.ipc.valor)}%`, formatMes(ind.ipc.fecha));
+      set(root, 'tpm', `${formatNum(ind.tpm.valor)}%`, formatFecha(ind.tpm.fecha));
+    }
+
+    if (ipc12) {
+      set(root, 'ipc12', formatPct(ipc12.valor), `${formatMes(ipc12.desde)} – ${formatMes(ipc12.hasta)}`);
+    } else {
+      set(root, 'ipc12', 'No disponible', '');
+    }
+  }
+
+  roots.forEach((root) => void render(root));
+</script>

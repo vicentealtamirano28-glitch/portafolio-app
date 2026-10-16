@@ -1,0 +1,61 @@
+---
+import { ASSETS, AVISO_SUPUESTOS, CORRELACION } from '../lib/finance';
+
+const pct = (v: number) => `${(v * 100).toLocaleString('es-CL', { maximumFractionDigits: 1 })}%`;
+const nombreCorto = { rv: 'Renta variable', rf: 'Renta fija', caja: 'Caja' } as const;
+const pares = Object.entries(CORRELACION).map(([par, rho]) => {
+  const [a, b] = par.split('-') as [keyof typeof nombreCorto, keyof typeof nombreCorto];
+  return { etiqueta: `${nombreCorto[a]} – ${nombreCorto[b]}`, rho };
+});
+---
+
+<details class="supuestos">
+  <summary><strong>{AVISO_SUPUESTOS}</strong> Ver los supuestos usados</summary>
+  <table>
+    <caption class="visually-hidden">Supuestos anuales por clase de activo</caption>
+    <thead>
+      <tr><th scope="col">Clase de activo</th><th scope="col">Retorno esperado</th><th scope="col">Volatilidad</th></tr>
+    </thead>
+    <tbody>
+      {
+        ASSETS.map((a) => (
+          <tr>
+            <td>{a.nombre}</td>
+            <td class="num">{pct(a.retornoEsperado)}</td>
+            <td class="num">{pct(a.volatilidad)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+  <p>
+    Correlaciones: {
+      pares.map((p, i) => (
+        <span class="num">
+          {p.etiqueta}: {p.rho.toLocaleString('es-CL')}
+          {i < pares.length - 1 ? '; ' : '.'}
+        </span>
+      ))
+    }
+  </p>
+  <p>Son valores anuales, nominales y redondos para enseñar la lógica. No son proyecciones ni datos históricos de un mercado específico.</p>
+</details>
+
+<style>
+  .supuestos {
+    margin: 1rem 0 0;
+    font-size: 0.9rem;
+    border-left: 2px solid var(--ochre);
+    padding: 0.3rem 0 0.3rem 0.9rem;
+  }
+
+  summary {
+    cursor: pointer;
+    padding: 0.25rem 0;
+  }
+
+  .supuestos p {
+    margin: 0.5rem 0 0;
+    color: var(--ink-soft);
+  }
+</style>
