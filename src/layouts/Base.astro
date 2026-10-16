@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Disclaimer from '../components/Disclaimer.astro';
+import { url, sinBase } from '../lib/url';
 
 interface Props {
   title: string;
@@ -12,7 +13,7 @@ interface Props {
 const { title, description, jsonLd, ogType = 'website' } = Astro.props;
 const SITE = 'Cuaderno de portafolios';
 const fullTitle = title === SITE ? title : `${title} · ${SITE}`;
-const path = Astro.url.pathname;
+const path = sinBase(Astro.url.pathname);
 
 const nav = [
   { href: '/', label: 'Inicio' },
@@ -58,14 +59,14 @@ const csp = [
     <meta property="og:locale" content="es_CL" />
     <meta property="og:site_name" content={SITE} />
     <meta name="twitter:card" content="summary" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
   </head>
   <body>
     <a class="skip" href="#contenido">Saltar al contenido</a>
     <header class="masthead">
       <div class="inner">
-        <a class="brand" href="/">
+        <a class="brand" href={url('/')}>
           <span class="brand-mark" aria-hidden="true">§</span>
           Cuaderno de portafolios
         </a>
@@ -74,7 +75,7 @@ const csp = [
             {
               nav.map((item) => (
                 <li>
-                  <a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+                  <a href={url(item.href)} aria-current={isCurrent(item.href) ? 'page' : undefined}>
                     {item.label}
                   </a>
                 </li>

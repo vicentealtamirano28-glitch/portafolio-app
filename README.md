@@ -4,7 +4,11 @@ App web estática y educativa que explica cómo funciona un portafolio de invers
 
 **Contenido educativo. No es una recomendación de inversión.**
 
-## Cómo correrlo
+**Abrir la app:** https://vicentealtamirano28-glitch.github.io/portafolio-app/
+
+Se publica sola con cada cambio en `main` (`.github/workflows/deploy.yml`).
+
+## Cómo correrlo en tu computador
 
 Requiere Node 22.22 o superior.
 

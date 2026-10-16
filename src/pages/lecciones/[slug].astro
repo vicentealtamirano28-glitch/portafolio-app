@@ -2,6 +2,7 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Quiz from '../../components/Quiz.astro';
+import { url } from '../../lib/url';
 import TiposDeActivo from '../../components/widgets/TiposDeActivo.astro';
 import RangoRetorno from '../../components/widgets/RangoRetorno.astro';
 import Diversificacion from '../../components/widgets/Diversificacion.astro';
@@ -66,12 +67,12 @@ const jsonLd = {
     <nav class="paginacion" aria-label="Lecciones">
       {
         prev ? (
-          <a href={`/lecciones/${prev.id}`} rel="prev">
+          <a href={url(`/lecciones/${prev.id}`)} rel="prev">
             <span class="dir">Anterior</span>
             {prev.data.titulo}
           </a>
         ) : (
-          <a href="/">
+          <a href={url("/")}>
             <span class="dir">Volver</span>
             Inicio
           </a>
@@ -79,12 +80,12 @@ const jsonLd = {
       }
       {
         next ? (
-          <a href={`/lecciones/${next.id}`} rel="next" class="sig">
+          <a href={url(`/lecciones/${next.id}`)} rel="next" class="sig">
             <span class="dir">Siguiente</span>
             {next.data.titulo}
           </a>
         ) : (
-          <a href="/glosario" class="sig">
+          <a href={url("/glosario")} class="sig">
             <span class="dir">Para repasar</span>
             Glosario
           </a>
